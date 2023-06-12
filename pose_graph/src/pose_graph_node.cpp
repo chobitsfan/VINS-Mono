@@ -303,6 +303,7 @@ void process()
 
         // find out the messages with same time stamp
         m_buf.lock();
+	while(image_buf.size()>60) image_buf.pop();
         if(!image_buf.empty() && !point_buf.empty() && !pose_buf.empty())
         {
             if (image_buf.front()->header.stamp.toSec() > pose_buf.front()->header.stamp.toSec())

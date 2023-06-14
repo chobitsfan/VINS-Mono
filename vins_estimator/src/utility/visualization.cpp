@@ -8,6 +8,7 @@ ros::Publisher pub_point_cloud, pub_margin_cloud;
 ros::Publisher pub_key_poses;
 ros::Publisher pub_relo_relative_pose;
 ros::Publisher pub_camera_pose;
+ros::Publisher pub_mav_pose;
 ros::Publisher pub_camera_pose_visual;
 nav_msgs::Path path, relo_path;
 
@@ -30,6 +31,7 @@ void registerPub(ros::NodeHandle &n)
     pub_margin_cloud = n.advertise<sensor_msgs::PointCloud>("history_cloud", 1000);
     pub_key_poses = n.advertise<visualization_msgs::Marker>("key_poses", 1000);
     pub_camera_pose = n.advertise<nav_msgs::Odometry>("camera_pose", 1000);
+    pub_mav_pose = n.advertise<geometry_msgs::PoseStamped>("/mavros/mocap/pose", 1);
     pub_camera_pose_visual = n.advertise<visualization_msgs::MarkerArray>("camera_pose_visual", 1000);
     pub_keyframe_pose = n.advertise<nav_msgs::Odometry>("keyframe_pose", 1000);
     pub_keyframe_point = n.advertise<sensor_msgs::PointCloud>("keyframe_point", 1000);
@@ -229,6 +231,20 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
         odometry.pose.pose.orientation.w = R.w();
 
         pub_camera_pose.publish(odometry);
+
+	geometry_msgs::PoseStamped pose_stamped;
+        pose_stamped.header = header;
+        pose_stamped.header.frame_id = "world";
+	static Quaterniond w_to_d455 = Quaterniond((Matrix3d()<<1,0,0,0,0,-1,0,1,0).finished());
+	Quaterniond aligned_r = R * w_to_d455;
+	pose_stamped.pose.position.x = P.x(); 
+	pose_stamped.pose.position.y = P.y(); 
+	pose_stamped.pose.position.z = P.z();
+        pose_stamped.pose.orientation.x = aligned_r.x();
+        pose_stamped.pose.orientation.y = aligned_r.y();
+        pose_stamped.pose.orientation.z = aligned_r.z();
+        pose_stamped.pose.orientation.w = aligned_r.w();
+	pub_mav_pose.publish(pose_stamped);
 
         cameraposevisual.reset();
         cameraposevisual.add_pose(P, R);

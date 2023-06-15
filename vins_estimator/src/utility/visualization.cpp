@@ -1,4 +1,6 @@
 #include "visualization.h"
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
 using namespace ros;
 using namespace Eigen;
@@ -20,6 +22,7 @@ CameraPoseVisualization cameraposevisual(0, 1, 0, 1);
 CameraPoseVisualization keyframebasevisual(0.0, 0.0, 1.0, 1.0);
 static double sum_of_path = 0;
 static Vector3d last_path(0.0, 0.0, 0.0);
+struct sockaddr_in chobits_addr;
 
 void registerPub(ros::NodeHandle &n)
 {
@@ -42,6 +45,10 @@ void registerPub(ros::NodeHandle &n)
     cameraposevisual.setLineWidth(0.05);
     keyframebasevisual.setScale(0.1);
     keyframebasevisual.setLineWidth(0.01);
+
+    chobits_addr.sin_family = AF_INET;
+    chobits_addr.sin_port = htons(17500);
+    chobits_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 }
 
 void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, const std_msgs::Header &header)
@@ -127,7 +134,24 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         odometry.twist.twist.linear.z = estimator.Vs[WINDOW_SIZE].z();
         pub_odometry.publish(odometry);
 
-        geometry_msgs::PoseStamped pose_stamped;
+	    geometry_msgs::PoseStamped pose_stamped;
+        pose_stamped.header = header;
+        pose_stamped.header.frame_id = "world";
+        static Matrix3d d455_to_mav = (Matrix3d()<<0,-1,0,0,0,-1,1,0,0).finished();
+    	Quaterniond aligned_r = Quaterniond(estimator.Rs[WINDOW_SIZE] * d455_to_mav);
+    	pose_stamped.pose.position.x = estimator.Ps[WINDOW_SIZE].x(); 
+    	pose_stamped.pose.position.y = estimator.Ps[WINDOW_SIZE].y(); 
+    	pose_stamped.pose.position.z = estimator.Ps[WINDOW_SIZE].z();
+        pose_stamped.pose.orientation.x = aligned_r.x();
+        pose_stamped.pose.orientation.y = aligned_r.y();
+        pose_stamped.pose.orientation.z = aligned_r.z();
+        pose_stamped.pose.orientation.w = aligned_r.w();
+    	pub_mav_pose.publish(pose_stamped);
+        static int chobits_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        float chobits_msg[7] = { (float)aligned_r.w(), (float)aligned_r.x(), (float)aligned_r.y(), (float)aligned_r.z(), (float)pose_stamped.pose.position.x, (float)pose_stamped.pose.position.y, (float)pose_stamped.pose.position.z };
+        sendto(chobits_sock, chobits_msg, sizeof(chobits_msg), 0, (struct sockaddr*)&chobits_addr, sizeof(chobits_addr));
+
+        //geometry_msgs::PoseStamped pose_stamped;
         pose_stamped.header = header;
         pose_stamped.header.frame_id = "world";
         pose_stamped.pose = odometry.pose.pose;
@@ -232,19 +256,21 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
 
         pub_camera_pose.publish(odometry);
 
-	geometry_msgs::PoseStamped pose_stamped;
+#if 0
+	    geometry_msgs::PoseStamped pose_stamped;
         pose_stamped.header = header;
         pose_stamped.header.frame_id = "world";
-	static Quaterniond w_to_d455 = Quaterniond((Matrix3d()<<1,0,0,0,0,-1,0,1,0).finished());
-	Quaterniond aligned_r = R * w_to_d455;
-	pose_stamped.pose.position.x = P.x(); 
-	pose_stamped.pose.position.y = P.y(); 
-	pose_stamped.pose.position.z = P.z();
+    	static Quaterniond w_to_d455 = Quaterniond((Matrix3d()<<1,0,0,0,0,-1,0,1,0).finished());
+    	Quaterniond aligned_r = R * w_to_d455;
+    	pose_stamped.pose.position.x = P.x(); 
+    	pose_stamped.pose.position.y = P.y(); 
+    	pose_stamped.pose.position.z = P.z();
         pose_stamped.pose.orientation.x = aligned_r.x();
         pose_stamped.pose.orientation.y = aligned_r.y();
         pose_stamped.pose.orientation.z = aligned_r.z();
         pose_stamped.pose.orientation.w = aligned_r.w();
-	pub_mav_pose.publish(pose_stamped);
+    	pub_mav_pose.publish(pose_stamped);
+#endif
 
         cameraposevisual.reset();
         cameraposevisual.add_pose(P, R);

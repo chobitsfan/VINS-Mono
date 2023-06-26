@@ -75,6 +75,12 @@ void printStatistics(const Estimator &estimator, double t)
 {
     if (estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
         return;
+
+    static int ccc=0;
+    ccc++;
+    if (ccc<60) return;
+    ccc=0;
+
     printf("position: %f, %f, %f\r", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z());
     ROS_DEBUG_STREAM("position: " << estimator.Ps[WINDOW_SIZE].transpose());
     ROS_DEBUG_STREAM("orientation: " << estimator.Vs[WINDOW_SIZE].transpose());
@@ -137,8 +143,8 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
 	    geometry_msgs::PoseStamped pose_stamped;
         pose_stamped.header = header;
         pose_stamped.header.frame_id = "world";
-        static Matrix3d d455_to_mav = (Matrix3d()<<0,-1,0,0,0,-1,1,0,0).finished();
-    	Quaterniond aligned_r = Quaterniond(estimator.Rs[WINDOW_SIZE] * d455_to_mav);
+        static Matrix3d apm_to_vins = (Matrix3d()<<1,0,0,0,-1,0,0,0,-1).finished();
+        Quaterniond aligned_r = Quaterniond(estimator.Rs[WINDOW_SIZE] * apm_to_vins);
     	pose_stamped.pose.position.x = estimator.Ps[WINDOW_SIZE].x(); 
     	pose_stamped.pose.position.y = estimator.Ps[WINDOW_SIZE].y(); 
     	pose_stamped.pose.position.z = estimator.Ps[WINDOW_SIZE].z();

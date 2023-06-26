@@ -138,7 +138,7 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         pose_stamped.header = header;
         pose_stamped.header.frame_id = "world";
         static Matrix3d d455_to_mav = (Matrix3d()<<0,-1,0,0,0,-1,1,0,0).finished();
-    	Quaterniond aligned_r = Quaterniond(estimator.Rs[WINDOW_SIZE] * d455_to_mav);
+    	Quaterniond aligned_r = Quaterniond(estimator.Rs[WINDOW_SIZE] * d455_to_mav); //rotate orientation to align copter fwrd-left-up, it will change to FRD in my_mavlink_udp
     	pose_stamped.pose.position.x = estimator.Ps[WINDOW_SIZE].x(); 
     	pose_stamped.pose.position.y = estimator.Ps[WINDOW_SIZE].y(); 
     	pose_stamped.pose.position.z = estimator.Ps[WINDOW_SIZE].z();

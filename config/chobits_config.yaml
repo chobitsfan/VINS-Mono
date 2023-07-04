@@ -2,24 +2,24 @@
 
 #common parameters
 imu_topic: "/chobits/imu"
-image_topic: "/camera/color/image_raw"
+image_topic: "/camera/image_raw"
 output_path: "/home/pi/output/"
 
 #camera calibration 
 model_type: PINHOLE
 camera_name: camera
 image_width: 640
-image_height: 480
+image_height: 400
 distortion_parameters:
-   k1: -0.054722633212804794
-   k2: 0.06445938348770142
-   p1: -0.001092882826924324
-   p2: 0.0008244779310189188
+   k1: -0.32747267502357097
+   k2: 0.093608450972047216
+   p1: -0.0024375418444505621
+   p2: 0.0025232025404728332
 projection_parameters:
-   fx: 385.5973815917969
-   fy: 385.11065673828125
-   cx: 324.7513122558594
-   cy: 240.29359436035156
+   fx: 347.73186421401721
+   fy: 347.73186421401721
+   cx: 320
+   cy: 200
 
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
@@ -39,7 +39,7 @@ extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [0.07, 0, 0]
+   data: [0.06, -0.04, 0]
 
 #feature traker paprameters
 max_cnt: 150            # max feature number in feature tracking

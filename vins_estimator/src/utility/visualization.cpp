@@ -108,8 +108,8 @@ void printStatistics(const Estimator &estimator, double t)
     static int sum_of_calculation = 0;
     sum_of_time += t;
     sum_of_calculation++;
-    ROS_DEBUG("vo solver costs: %f ms", t);
-    ROS_DEBUG("average of time %f ms", sum_of_time / sum_of_calculation);
+    ROS_INFO("vo solver costs: %f ms", t);
+    ROS_INFO("average of time %f ms", sum_of_time / sum_of_calculation);
 
     sum_of_path += (estimator.Ps[WINDOW_SIZE] - last_path).norm();
     last_path = estimator.Ps[WINDOW_SIZE];
@@ -122,22 +122,29 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
 {
     if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
     {
+        double px = estimator.Ps[WINDOW_SIZE].x();
+        double py = estimator.Ps[WINDOW_SIZE].y();
+        double pz = estimator.Ps[WINDOW_SIZE].z();
+        double vx = estimator.Vs[WINDOW_SIZE].x();
+        double vy = estimator.Vs[WINDOW_SIZE].y();
+        double vz = estimator.Vs[WINDOW_SIZE].z();
+
         nav_msgs::Odometry odometry;
         odometry.header = header;
         odometry.header.frame_id = "world";
         odometry.child_frame_id = "world";
         Quaterniond tmp_Q;
         tmp_Q = Quaterniond(estimator.Rs[WINDOW_SIZE]);
-        odometry.pose.pose.position.x = estimator.Ps[WINDOW_SIZE].x();
-        odometry.pose.pose.position.y = estimator.Ps[WINDOW_SIZE].y();
-        odometry.pose.pose.position.z = estimator.Ps[WINDOW_SIZE].z();
+        odometry.pose.pose.position.x = px;
+        odometry.pose.pose.position.y = py;
+        odometry.pose.pose.position.z = pz;
         odometry.pose.pose.orientation.x = tmp_Q.x();
         odometry.pose.pose.orientation.y = tmp_Q.y();
         odometry.pose.pose.orientation.z = tmp_Q.z();
         odometry.pose.pose.orientation.w = tmp_Q.w();
-        odometry.twist.twist.linear.x = estimator.Vs[WINDOW_SIZE].x();
-        odometry.twist.twist.linear.y = estimator.Vs[WINDOW_SIZE].y();
-        odometry.twist.twist.linear.z = estimator.Vs[WINDOW_SIZE].z();
+        odometry.twist.twist.linear.x = vx;
+        odometry.twist.twist.linear.y = vy;
+        odometry.twist.twist.linear.z = vz;
         pub_odometry.publish(odometry);
 
 	    geometry_msgs::PoseStamped pose_stamped;
@@ -145,8 +152,8 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         pose_stamped.header.frame_id = "world";
         static Matrix3d apm_to_vins = (Matrix3d()<<1,0,0,0,-1,0,0,0,-1).finished();
         Quaterniond aligned_r = Quaterniond(estimator.Rs[WINDOW_SIZE] * apm_to_vins);
-    	pose_stamped.pose.position.x = estimator.Ps[WINDOW_SIZE].x(); 
-    	pose_stamped.pose.position.y = estimator.Ps[WINDOW_SIZE].y(); 
+    	pose_stamped.pose.position.x = estimator.Ps[WINDOW_SIZE].x();
+    	pose_stamped.pose.position.y = estimator.Ps[WINDOW_SIZE].y();
     	pose_stamped.pose.position.z = estimator.Ps[WINDOW_SIZE].z();
         pose_stamped.pose.orientation.x = aligned_r.x();
         pose_stamped.pose.orientation.y = aligned_r.y();
@@ -154,7 +161,7 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         pose_stamped.pose.orientation.w = aligned_r.w();
     	pub_mav_pose.publish(pose_stamped);
         static int chobits_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-        float chobits_msg[7] = { (float)aligned_r.w(), (float)aligned_r.x(), (float)aligned_r.y(), (float)aligned_r.z(), (float)pose_stamped.pose.position.x, (float)pose_stamped.pose.position.y, (float)pose_stamped.pose.position.z };
+        float chobits_msg[10] = { (float)aligned_r.w(), (float)aligned_r.x(), (float)aligned_r.y(), (float)aligned_r.z(), (float)px, (float)py, (float)pz, (float)vx, (float)vy, (float)vz };
         sendto(chobits_sock, chobits_msg, sizeof(chobits_msg), 0, (struct sockaddr*)&chobits_addr, sizeof(chobits_addr));
 
         //geometry_msgs::PoseStamped pose_stamped;

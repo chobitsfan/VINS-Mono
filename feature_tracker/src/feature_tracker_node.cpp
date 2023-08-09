@@ -231,7 +231,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_img = n.subscribe(IMAGE_TOPIC, 100, img_callback);
 
     pub_img = n.advertise<sensor_msgs::PointCloud>("feature", 1000);
-    pub_match = n.advertise<sensor_msgs::Image>("feature_img",1000);
+    if (SHOW_TRACK) pub_match = n.advertise<sensor_msgs::Image>("feature_img",1000);
     pub_restart = n.advertise<std_msgs::Bool>("restart",1000);
     /*
     if (SHOW_TRACK)

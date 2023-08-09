@@ -1,6 +1,10 @@
 #include "visualization.h"
+#include <sys/types.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
+#include <sys/un.h>
+
+#define SERVER_PATH "/tmp/chobits_server"
+#define SOCK_PATH "/tmp/chobits_1234"
 
 using namespace ros;
 using namespace Eigen;
@@ -22,7 +26,8 @@ CameraPoseVisualization cameraposevisual(0, 1, 0, 1);
 CameraPoseVisualization keyframebasevisual(0.0, 0.0, 1.0, 1.0);
 static double sum_of_path = 0;
 static Vector3d last_path(0.0, 0.0, 0.0);
-struct sockaddr_in chobits_addr;
+struct sockaddr_un chobits_addr, chobits_local_addr;
+static int chobits_sock;
 
 void registerPub(ros::NodeHandle &n)
 {
@@ -46,9 +51,15 @@ void registerPub(ros::NodeHandle &n)
     keyframebasevisual.setScale(0.1);
     keyframebasevisual.setLineWidth(0.01);
 
-    chobits_addr.sin_family = AF_INET;
-    chobits_addr.sin_port = htons(17500);
-    chobits_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    memset(&chobits_addr, 0, sizeof(struct sockaddr_un));
+    chobits_addr.sun_family = AF_UNIX;
+    strcpy(chobits_addr.sun_path, SERVER_PATH);
+    memset(&chobits_local_addr, 0, sizeof(struct sockaddr_un));
+    chobits_local_addr.sun_family = AF_UNIX;
+    strcpy(chobits_local_addr.sun_path, SOCK_PATH);
+    chobits_sock = socket(AF_UNIX, SOCK_DGRAM, 0);
+    unlink(SOCK_PATH);
+    bind(chobits_sock, (struct sockaddr*)&chobits_local_addr, sizeof(chobits_local_addr));
 }
 
 void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, const std_msgs::Header &header)
@@ -81,7 +92,7 @@ void printStatistics(const Estimator &estimator, double t)
     if (ccc<60) return;
     ccc=0;
 
-    printf("position: %f, %f, %f\r", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z());
+    //printf("position: %f, %f, %f\r", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z());
     ROS_DEBUG_STREAM("position: " << estimator.Ps[WINDOW_SIZE].transpose());
     ROS_DEBUG_STREAM("orientation: " << estimator.Vs[WINDOW_SIZE].transpose());
     for (int i = 0; i < NUM_OF_CAM; i++)
@@ -160,7 +171,6 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         pose_stamped.pose.orientation.z = aligned_r.z();
         pose_stamped.pose.orientation.w = aligned_r.w();
     	pub_mav_pose.publish(pose_stamped);
-        static int chobits_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
         float chobits_msg[10] = { (float)aligned_r.w(), (float)aligned_r.x(), (float)aligned_r.y(), (float)aligned_r.z(), (float)px, (float)py, (float)pz, (float)vx, (float)vy, (float)vz };
         sendto(chobits_sock, chobits_msg, sizeof(chobits_msg), 0, (struct sockaddr*)&chobits_addr, sizeof(chobits_addr));
 

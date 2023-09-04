@@ -26,8 +26,8 @@ ros::Publisher pub_extrinsic;*/
 
 CameraPoseVisualization cameraposevisual(0, 1, 0, 1);
 CameraPoseVisualization keyframebasevisual(0.0, 0.0, 1.0, 1.0);
-static double sum_of_path = 0;
-static Vector3d last_path(0.0, 0.0, 0.0);
+//static double sum_of_path = 0;
+//static Vector3d last_path(0.0, 0.0, 0.0);
 struct sockaddr_un chobits_addr, chobits_local_addr;
 static int chobits_sock;
 
@@ -94,7 +94,7 @@ void printStatistics(const Estimator &estimator, double t)
     if (ccc<60) return;
     ccc=0;
 
-    //printf("position: %f, %f, %f\r", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z());
+#if 0
     ROS_DEBUG_STREAM("position: " << estimator.Ps[WINDOW_SIZE].transpose());
     ROS_DEBUG_STREAM("orientation: " << estimator.Vs[WINDOW_SIZE].transpose());
     for (int i = 0; i < NUM_OF_CAM; i++)
@@ -116,17 +116,18 @@ void printStatistics(const Estimator &estimator, double t)
             fs.release();
         }
     }
+#endif
 
     static double sum_of_time = 0;
     static int sum_of_calculation = 0;
     sum_of_time += t;
     sum_of_calculation++;
-    ROS_INFO("vo solver costs: %f ms", t);
-    ROS_INFO("average of time %f ms", sum_of_time / sum_of_calculation);
+    //ROS_INFO("vo solver costs: %f ms", t);
+    ROS_INFO("avg estimator cost %f ms", sum_of_time / sum_of_calculation);
 
-    sum_of_path += (estimator.Ps[WINDOW_SIZE] - last_path).norm();
-    last_path = estimator.Ps[WINDOW_SIZE];
-    ROS_DEBUG("sum of path %f", sum_of_path);
+    //sum_of_path += (estimator.Ps[WINDOW_SIZE] - last_path).norm();
+    //last_path = estimator.Ps[WINDOW_SIZE];
+    //ROS_DEBUG("sum of path %f", sum_of_path);
     if (ESTIMATE_TD)
         ROS_INFO("td %f", estimator.td);
 }

@@ -200,7 +200,16 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             pub_match.publish(ptr->toImageMsg());
         }
     }
-    ROS_INFO("whole feature tracker processing costs: %f", t_r.toc());
+    static int ccc=0;
+    static double sum_of_time = 0;
+    static int sum_of_calculation = 0;
+    sum_of_time += t_r.toc();
+    sum_of_calculation++;
+    ccc++;
+    if (ccc>120){
+        ccc=0;
+        ROS_INFO("avg feature tracker costs %f ms", sum_of_time / sum_of_calculation);
+    }
 }
 
 int main(int argc, char **argv)
@@ -228,7 +237,7 @@ int main(int argc, char **argv)
         }
     }
 
-    ros::Subscriber sub_img = n.subscribe(IMAGE_TOPIC, 100, img_callback);
+    ros::Subscriber sub_img = n.subscribe(IMAGE_TOPIC, 20, img_callback, ros::TransportHints().tcpNoDelay());
 
     pub_img = n.advertise<sensor_msgs::PointCloud>("feature", 1000);
     if (SHOW_TRACK) pub_match = n.advertise<sensor_msgs::Image>("feature_img",1000);

@@ -2,6 +2,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/point_cloud2_iterator.h>
 
 #define SERVER_PATH "/tmp/chobits_server"
 #define SOCK_PATH "/tmp/chobits_1234"
@@ -37,7 +39,7 @@ void registerPub(ros::NodeHandle &n)
     pub_path = n.advertise<nav_msgs::Path>("path", 1000);
     pub_relo_path = n.advertise<nav_msgs::Path>("relocalization_path", 1000);*/
     pub_odometry = n.advertise<nav_msgs::Odometry>("odometry", 10);
-    pub_point_cloud = n.advertise<sensor_msgs::PointCloud>("point_cloud", 10);
+    pub_point_cloud = n.advertise<sensor_msgs::PointCloud2>("point_cloud", 10);
     pub_mav_pose = n.advertise<geometry_msgs::PoseStamped>("mav_pose", 10);
     /*pub_margin_cloud = n.advertise<sensor_msgs::PointCloud>("history_cloud", 1000);
     pub_key_poses = n.advertise<visualization_msgs::Marker>("key_poses", 1000);
@@ -310,31 +312,60 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
 
 void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
 {
-    sensor_msgs::PointCloud point_cloud, loop_point_cloud;
+    int count = 0;
+    sensor_msgs::PointCloud2 point_cloud;
     point_cloud.header = header;
-    loop_point_cloud.header = header;
-
+    point_cloud.height = 1;
+    point_cloud.fields.resize(3);
+    point_cloud.fields[0].name = "x";
+    point_cloud.fields[1].name = "y";
+    point_cloud.fields[2].name = "z";
+    point_cloud.fields[0].offset = 0;
+    point_cloud.fields[0].datatype = sensor_msgs::PointField::FLOAT32;
+    point_cloud.fields[0].count  = 1;
+    point_cloud.fields[1].offset = 4;
+    point_cloud.fields[1].datatype = sensor_msgs::PointField::FLOAT32;
+    point_cloud.fields[1].count  = 1;
+    point_cloud.fields[2].offset = 8;
+    point_cloud.fields[2].datatype = sensor_msgs::PointField::FLOAT32;
+    point_cloud.fields[2].count  = 1;
+    point_cloud.point_step = 12;
+    point_cloud.is_bigendian = false;
+    point_cloud.is_dense = true;
 
     for (auto &it_per_id : estimator.f_manager.feature)
     {
-        int used_num;
-        used_num = it_per_id.feature_per_frame.size();
-        if (!(used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+        if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+            continue;
+        if (it_per_id.start_frame > WINDOW_SIZE * 3.0 / 4.0 || it_per_id.solve_flag != 1)
+            continue;
+        count++;
+    }
+
+    point_cloud.data.resize(12 * count);
+    point_cloud.row_step = 12 * count;
+    point_cloud.width = count;
+    sensor_msgs::PointCloud2Iterator<float> iter_x(point_cloud, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(point_cloud, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(point_cloud, "z");
+
+    for (auto &it_per_id : estimator.f_manager.feature)
+    {
+        if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
             continue;
         if (it_per_id.start_frame > WINDOW_SIZE * 3.0 / 4.0 || it_per_id.solve_flag != 1)
             continue;
         int imu_i = it_per_id.start_frame;
         Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
         Vector3d w_pts_i = estimator.Rs[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.Ps[imu_i];
-
-        geometry_msgs::Point32 p;
-        p.x = w_pts_i(0);
-        p.y = w_pts_i(1);
-        p.z = w_pts_i(2);
-        point_cloud.points.push_back(p);
+        *iter_x = static_cast<float>(w_pts_i(0));
+        *iter_y = static_cast<float>(w_pts_i(1));
+        *iter_z = static_cast<float>(w_pts_i(2));
+        ++iter_x;
+        ++iter_y;
+        ++iter_z;
     }
     pub_point_cloud.publish(point_cloud);
-
 
     // pub margined potin
 #if 0

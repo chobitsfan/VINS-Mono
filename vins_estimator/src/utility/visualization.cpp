@@ -312,7 +312,7 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
 
 void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
 {
-    int count = 0;
+    int count = estimator.f_manager.feature.size();
     sensor_msgs::PointCloud2 point_cloud;
     point_cloud.header = header;
     point_cloud.height = 1;
@@ -332,17 +332,7 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
     point_cloud.point_step = 12;
     point_cloud.is_bigendian = false;
     point_cloud.is_dense = true;
-
-    for (auto &it_per_id : estimator.f_manager.feature)
-    {
-        if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
-            continue;
-        if (it_per_id.start_frame > WINDOW_SIZE * 3.0 / 4.0 || it_per_id.solve_flag != 1)
-            continue;
-        count++;
-    }
-
-    point_cloud.data.resize(12 * count);
+    point_cloud.data.resize(12 * count, 0);
     point_cloud.row_step = 12 * count;
     point_cloud.width = count;
     sensor_msgs::PointCloud2Iterator<float> iter_x(point_cloud, "x");

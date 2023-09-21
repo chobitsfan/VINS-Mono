@@ -1,0 +1,14 @@
+[Unit]
+Description=vins mono
+Wants=multi-user.target
+After=multi-user.target
+
+[Service]
+Type=simple 
+ExecStart=/bin/bash -c 'source /home/pi/src/vins_mono_catkin_ws/devel/setup.bash && exec roslaunch vins_estimator chobits.launch'
+KillSignal=SIGINT
+User=pi
+WorkingDirectory=/home/pi/
+
+[Install]
+WantedBy=multi-user.target
